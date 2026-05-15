@@ -1,2 +1,7 @@
 /build/*
 !/build/.npmkeep
+
+# Signing keys - 絶対にコミットしない
+*.keystore
+*.jks
+release.keystore
