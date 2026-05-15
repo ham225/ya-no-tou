@@ -19,8 +19,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Capacitor (Phase 6で追加予定)
-android/
+# Capacitor: android/ は追跡対象(GitHub Actionsのビルド元)。
+# android/ 内のビルド成果物は android/.gitignore で除外済み。
 ios/
 
 # Environment

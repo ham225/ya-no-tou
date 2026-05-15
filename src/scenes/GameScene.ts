@@ -11,6 +11,7 @@ import { PlayerStats } from '../state/PlayerStats';
 import { UpgradeDef, rollUpgradeChoices } from '../upgrades/Upgrades';
 import { SoundFx } from '../audio/SoundFx';
 import { Storage } from '../state/Storage';
+import { AdManager } from '../ads/AdManager';
 
 const JOYSTICK_RADIUS = 80;
 const JOYSTICK_DEADZONE = 8;
@@ -587,6 +588,7 @@ export class GameScene extends Phaser.Scene {
     this.overlayLockedUntil = time + OVERLAY_TAP_LOCK_MS;
     this.clearJoystick();
     SoundFx.gameOver();
+    AdManager.showInterstitial().catch(() => undefined);
   }
 
   private showUpgradeChoices(): void {
