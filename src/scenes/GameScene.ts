@@ -1,18 +1,26 @@
 import Phaser from 'phaser';
 import { Player, PLAYER_SPEED } from '../entities/Player';
-import { Enemy, EnemyConfig } from '../entities/Enemy';
+import { Enemy, EnemyDeathContext } from '../entities/Enemy';
+import { EnemyType } from '../entities/EnemyTypes';
 import { Arrow } from '../entities/Arrow';
+import { EnemyBullet } from '../entities/EnemyBullet';
+import { Boss } from '../entities/Boss';
+import { STAGES } from '../config/Stages';
 
 const JOYSTICK_RADIUS = 80;
 const JOYSTICK_DEADZONE = 8;
 const OVERLAY_TAP_LOCK_MS = 500;
+const HP_BAR_WIDTH = 156;
+const BOSS_BAR_WIDTH = 360;
 
-type GameState = 'playing' | 'stageCleared' | 'gameOver';
+type GameState = 'playing' | 'stageCleared' | 'gameOver' | 'allClear';
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
   private enemies!: Phaser.GameObjects.Group;
   private arrows!: Phaser.GameObjects.Group;
+  private enemyBullets!: Phaser.GameObjects.Group;
+  private boss: Boss | null = null;
 
   private joystickOrigin: Phaser.Math.Vector2 | null = null;
   private joystickCurrent: Phaser.Math.Vector2 | null = null;
@@ -20,11 +28,13 @@ export class GameScene extends Phaser.Scene {
   private baseCircle!: Phaser.GameObjects.Arc;
   private knobCircle!: Phaser.GameObjects.Arc;
 
-  private hpBarBg!: Phaser.GameObjects.Rectangle;
   private hpBarFill!: Phaser.GameObjects.Rectangle;
   private hpText!: Phaser.GameObjects.Text;
   private stageText!: Phaser.GameObjects.Text;
   private killText!: Phaser.GameObjects.Text;
+  private bossBarBg!: Phaser.GameObjects.Rectangle;
+  private bossBarFill!: Phaser.GameObjects.Rectangle;
+  private bossLabel!: Phaser.GameObjects.Text;
   private overlayTitle!: Phaser.GameObjects.Text;
   private overlaySub!: Phaser.GameObjects.Text;
 
@@ -44,6 +54,7 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, width / 2, height * 0.75);
     this.enemies = this.add.group();
     this.arrows = this.add.group();
+    this.enemyBullets = this.add.group();
 
     this.baseCircle = this.add
       .circle(0, 0, JOYSTICK_RADIUS, 0xffffff, 0.12)
@@ -70,6 +81,13 @@ export class GameScene extends Phaser.Scene {
       undefined,
       this,
     );
+    this.physics.add.overlap(
+      this.player,
+      this.enemyBullets,
+      this.handleBulletHitPlayer as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      undefined,
+      this,
+    );
 
     this.input.on('pointerdown', this.onPointerDown, this);
     this.input.on('pointermove', this.onPointerMove, this);
@@ -79,19 +97,34 @@ export class GameScene extends Phaser.Scene {
     this.startStage(1);
   }
 
-  update(time: number): void {
+  update(time: number, delta: number): void {
     if (this.gameState !== 'playing') return;
+    const dtSec = delta / 1000;
 
     this.updatePlayerMovement();
-    this.updateEnemyAI();
+    this.updateEnemies(time, dtSec);
+    this.updateBoss(time);
     this.tryAutoAttack(time);
-    this.cullOffscreenArrows();
+    this.cullOffscreen();
     this.updateHUD();
 
-    if (this.enemies.countActive(true) === 0) {
-      this.enterStageCleared(time);
-    } else if (!this.player.isAlive) {
+    if (!this.player.isAlive) {
       this.enterGameOver(time);
+      return;
+    }
+
+    if (this.boss) {
+      if (!this.boss.isAlive) {
+        this.boss.destroy();
+        this.boss = null;
+        this.enemyBullets.clear(true, true);
+        this.bossBarBg.setVisible(false);
+        this.bossBarFill.setVisible(false);
+        this.bossLabel.setVisible(false);
+        this.enterStageCleared(time);
+      }
+    } else if (this.enemies.countActive(true) === 0) {
+      this.enterStageCleared(time);
     }
   }
 
@@ -99,24 +132,24 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.add
-      .text(width / 2, 16, '矢の塔', {
+      .text(width / 2, 14, '矢の塔', {
         fontFamily: 'sans-serif',
-        fontSize: '18px',
+        fontSize: '16px',
         color: '#e9e9ff',
       })
       .setOrigin(0.5, 0)
       .setDepth(100);
 
-    this.hpBarBg = this.add
-      .rectangle(20, 60, 160, 18, 0x333344, 0.85)
+    this.add
+      .rectangle(20, 60, HP_BAR_WIDTH + 4, 18, 0x333344, 0.85)
       .setOrigin(0, 0.5)
       .setDepth(100);
     this.hpBarFill = this.add
-      .rectangle(22, 60, 156, 14, 0x66ff88)
+      .rectangle(22, 60, HP_BAR_WIDTH, 14, 0x66ff88)
       .setOrigin(0, 0.5)
       .setDepth(101);
     this.hpText = this.add
-      .text(this.hpBarBg.x + this.hpBarBg.width / 2, 60, '', {
+      .text(22 + HP_BAR_WIDTH / 2, 60, '', {
         fontFamily: 'sans-serif',
         fontSize: '12px',
         color: '#000',
@@ -127,8 +160,9 @@ export class GameScene extends Phaser.Scene {
     this.stageText = this.add
       .text(width / 2, 60, '', {
         fontFamily: 'sans-serif',
-        fontSize: '16px',
+        fontSize: '14px',
         color: '#e9e9ff',
+        align: 'center',
       })
       .setOrigin(0.5, 0.5)
       .setDepth(100);
@@ -142,6 +176,26 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(1, 0.5)
       .setDepth(100);
 
+    this.bossBarBg = this.add
+      .rectangle(width / 2, 100, BOSS_BAR_WIDTH + 4, 16, 0x222233, 0.9)
+      .setOrigin(0.5)
+      .setDepth(100)
+      .setVisible(false);
+    this.bossBarFill = this.add
+      .rectangle(width / 2 - BOSS_BAR_WIDTH / 2, 100, BOSS_BAR_WIDTH, 12, 0xff3060)
+      .setOrigin(0, 0.5)
+      .setDepth(101)
+      .setVisible(false);
+    this.bossLabel = this.add
+      .text(width / 2, 84, 'BOSS', {
+        fontFamily: 'sans-serif',
+        fontSize: '13px',
+        color: '#ff8aa0',
+      })
+      .setOrigin(0.5)
+      .setDepth(100)
+      .setVisible(false);
+
     this.overlayTitle = this.add
       .text(width / 2, height / 2 - 30, '', {
         fontFamily: 'sans-serif',
@@ -153,12 +207,12 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(200)
       .setVisible(false);
-
     this.overlaySub = this.add
       .text(width / 2, height / 2 + 30, '', {
         fontFamily: 'sans-serif',
         fontSize: '20px',
         color: '#ffe066',
+        align: 'center',
       })
       .setOrigin(0.5)
       .setDepth(200)
@@ -166,36 +220,89 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHUD(): void {
-    const ratio = this.player.hp / this.player.maxHp;
-    this.hpBarFill.width = 156 * ratio;
+    const hpRatio = this.player.hp / this.player.maxHp;
+    this.hpBarFill.width = HP_BAR_WIDTH * hpRatio;
     this.hpText.setText(`HP ${this.player.hp}/${this.player.maxHp}`);
-    this.stageText.setText(`ステージ ${this.currentStage}`);
+
+    const stage = STAGES[this.currentStage - 1];
+    const stageName = stage ? stage.name : '???';
+    this.stageText.setText(`ステージ ${this.currentStage}\n${stageName}`);
+
     this.killText.setText(`撃破: ${this.killCount}`);
+
+    if (this.boss) {
+      const ratio = this.boss.hp / this.boss.maxHp;
+      this.bossBarFill.width = BOSS_BAR_WIDTH * ratio;
+    }
   }
 
   private startStage(stage: number): void {
+    if (stage > STAGES.length) {
+      this.gameState = 'allClear';
+      this.overlayTitle.setText('全クリア!').setVisible(true);
+      this.overlaySub
+        .setText(`撃破数 ${this.killCount}\nタップでステージ1から再挑戦`)
+        .setVisible(true);
+      this.overlayLockedUntil = this.time.now + OVERLAY_TAP_LOCK_MS;
+      this.clearJoystick();
+      return;
+    }
+
     this.currentStage = stage;
     this.enemies.clear(true, true);
     this.arrows.clear(true, true);
+    this.enemyBullets.clear(true, true);
+    if (this.boss) {
+      this.boss.destroy();
+      this.boss = null;
+    }
+    this.bossBarBg.setVisible(false);
+    this.bossBarFill.setVisible(false);
+    this.bossLabel.setVisible(false);
 
-    const enemyCount = 4 + stage;
-    const config: EnemyConfig = {
-      hp: 1 + Math.floor((stage - 1) / 3),
-      speed: 60 + (stage - 1) * 5,
-      contactDamage: 1,
-    };
-
-    for (let i = 0; i < enemyCount; i++) {
-      const x = Phaser.Math.Between(50, this.scale.width - 50);
-      const y = Phaser.Math.Between(100, 220);
-      const enemy = new Enemy(this, x, y, config);
-      this.enemies.add(enemy);
+    const cfg = STAGES[stage - 1];
+    if (cfg.isBoss) {
+      this.spawnBoss();
+    } else {
+      this.spawnStageEnemies(cfg.spawns);
     }
 
     this.gameState = 'playing';
     this.overlayTitle.setVisible(false);
     this.overlaySub.setVisible(false);
     this.updateHUD();
+  }
+
+  private spawnStageEnemies(spawns: { type: EnemyType; count: number }[]): void {
+    spawns.forEach((s) => {
+      for (let i = 0; i < s.count; i++) {
+        const x = Phaser.Math.Between(50, this.scale.width - 50);
+        const y = Phaser.Math.Between(100, 240);
+        this.enemies.add(new Enemy(this, x, y, s.type));
+      }
+    });
+  }
+
+  private spawnBoss(): void {
+    const { width } = this.scale;
+    this.boss = new Boss(this, width / 2, 180);
+    this.physics.add.overlap(
+      this.arrows,
+      this.boss,
+      this.handleArrowHitBoss as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      undefined,
+      this,
+    );
+    this.physics.add.overlap(
+      this.player,
+      this.boss,
+      this.handleBossHitPlayer as Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
+      undefined,
+      this,
+    );
+    this.bossBarBg.setVisible(true);
+    this.bossBarFill.setVisible(true);
+    this.bossLabel.setVisible(true);
   }
 
   private updatePlayerMovement(): void {
@@ -214,17 +321,28 @@ export class GameScene extends Phaser.Scene {
     this.player.body.setVelocity(0, 0);
   }
 
-  private updateEnemyAI(): void {
+  private updateEnemies(time: number, dtSec: number): void {
+    const addBullet = (b: EnemyBullet): void => {
+      this.enemyBullets.add(b);
+    };
     this.enemies.getChildren().forEach((obj) => {
       const enemy = obj as Enemy;
-      enemy.moveToward(this.player.x, this.player.y);
+      enemy.updateAI(this.player.x, this.player.y, time, dtSec, addBullet);
     });
+  }
+
+  private updateBoss(time: number): void {
+    if (!this.boss) return;
+    const addBullet = (b: EnemyBullet): void => {
+      this.enemyBullets.add(b);
+    };
+    this.boss.updateAI(this.player.x, this.player.y, time, addBullet);
   }
 
   private tryAutoAttack(time: number): void {
     if (this.player.isMoving) return;
     if (!this.player.canAttack(time)) return;
-    const target = this.findClosestEnemy();
+    const target = this.findClosestTarget();
     if (!target) return;
     const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, target.x, target.y);
     const arrow = new Arrow(this, this.player.x, this.player.y, angle);
@@ -232,30 +350,42 @@ export class GameScene extends Phaser.Scene {
     this.player.markAttacked(time);
   }
 
-  private cullOffscreenArrows(): void {
-    const margin = 20;
+  private cullOffscreen(): void {
+    const margin = 30;
     const w = this.scale.width;
     const h = this.scale.height;
+    const isOutside = (x: number, y: number): boolean =>
+      x < -margin || x > w + margin || y < -margin || y > h + margin;
+
     this.arrows.getChildren().forEach((obj) => {
-      const arrow = obj as Arrow;
-      if (arrow.x < -margin || arrow.x > w + margin || arrow.y < -margin || arrow.y > h + margin) {
-        arrow.destroy();
-      }
+      const a = obj as Arrow;
+      if (isOutside(a.x, a.y)) a.destroy();
+    });
+    this.enemyBullets.getChildren().forEach((obj) => {
+      const b = obj as EnemyBullet;
+      if (isOutside(b.x, b.y)) b.destroy();
     });
   }
 
-  private findClosestEnemy(): Enemy | null {
-    let closest: Enemy | null = null;
-    let bestDist = Infinity;
+  private findClosestTarget(): { x: number; y: number } | null {
+    let closest: { x: number; y: number } | null = null;
+    let best = Infinity;
     this.enemies.getChildren().forEach((obj) => {
-      const enemy = obj as Enemy;
-      if (!enemy.isAlive) return;
-      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-      if (d < bestDist) {
-        bestDist = d;
-        closest = enemy;
+      const e = obj as Enemy;
+      if (!e.isAlive) return;
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
+      if (d < best) {
+        best = d;
+        closest = e;
       }
     });
+    if (this.boss && this.boss.isAlive) {
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.boss.x, this.boss.y);
+      if (d < best) {
+        best = d;
+        closest = this.boss;
+      }
+    }
     return closest;
   }
 
@@ -269,9 +399,33 @@ export class GameScene extends Phaser.Scene {
     enemy.takeDamage(arrow.damage);
     arrow.destroy();
     if (!enemy.isAlive) {
+      const ctx: EnemyDeathContext = {
+        scene: this,
+        playerX: this.player.x,
+        playerY: this.player.y,
+        damagePlayer: (amount) => {
+          this.player.takeDamage(amount, this.time.now);
+        },
+        spawnEnemy: (type, x, y) => {
+          const clampedX = Phaser.Math.Clamp(x, 30, this.scale.width - 30);
+          const clampedY = Phaser.Math.Clamp(y, 30, this.scale.height - 30);
+          this.enemies.add(new Enemy(this, clampedX, clampedY, type));
+        },
+      };
+      enemy.handleDeath(ctx);
       enemy.destroy();
       this.killCount++;
     }
+  };
+
+  private handleArrowHitBoss = (arrowObj: unknown, _bossObj: unknown): void => {
+    const arrow = arrowObj as Arrow;
+    if (!this.boss || !this.boss.isAlive) {
+      arrow.destroy();
+      return;
+    }
+    this.boss.takeDamage(arrow.damage, this.time.now);
+    arrow.destroy();
   };
 
   private handleEnemyHitPlayer = (_playerObj: unknown, enemyObj: unknown): void => {
@@ -280,11 +434,30 @@ export class GameScene extends Phaser.Scene {
     this.player.takeDamage(enemy.contactDamage, this.time.now);
   };
 
+  private handleBossHitPlayer = (): void => {
+    if (!this.boss || !this.boss.isAlive) return;
+    this.player.takeDamage(this.boss.contactDamage, this.time.now);
+  };
+
+  private handleBulletHitPlayer = (_playerObj: unknown, bulletObj: unknown): void => {
+    const bullet = bulletObj as EnemyBullet;
+    this.player.takeDamage(bullet.damage, this.time.now);
+    bullet.destroy();
+  };
+
   private enterStageCleared(time: number): void {
     this.gameState = 'stageCleared';
     this.player.body.setVelocity(0, 0);
-    this.overlayTitle.setText('ステージクリア!').setVisible(true);
-    this.overlaySub.setText('タップで次のステージへ').setVisible(true);
+    this.enemyBullets.clear(true, true);
+    if (this.currentStage >= STAGES.length) {
+      this.overlayTitle.setText('全クリア!').setVisible(true);
+      this.overlaySub
+        .setText(`撃破数 ${this.killCount}\nタップでステージ1から再挑戦`)
+        .setVisible(true);
+    } else {
+      this.overlayTitle.setText('ステージクリア!').setVisible(true);
+      this.overlaySub.setText('タップで次のステージへ').setVisible(true);
+    }
     this.overlayLockedUntil = time + OVERLAY_TAP_LOCK_MS;
     this.clearJoystick();
   }
@@ -292,6 +465,7 @@ export class GameScene extends Phaser.Scene {
   private enterGameOver(time: number): void {
     this.gameState = 'gameOver';
     this.player.body.setVelocity(0, 0);
+    this.enemyBullets.clear(true, true);
     this.overlayTitle.setText('ゲームオーバー').setVisible(true);
     this.overlaySub.setText('タップでリトライ').setVisible(true);
     this.overlayLockedUntil = time + OVERLAY_TAP_LOCK_MS;
@@ -302,8 +476,18 @@ export class GameScene extends Phaser.Scene {
     if (this.gameState !== 'playing') {
       if (this.time.now < this.overlayLockedUntil) return;
       if (this.gameState === 'stageCleared') {
-        this.startStage(this.currentStage + 1);
-      } else {
+        if (this.currentStage >= STAGES.length) {
+          this.killCount = 0;
+          this.player.reset(this.scale.width / 2, this.scale.height * 0.75);
+          this.startStage(1);
+        } else {
+          this.startStage(this.currentStage + 1);
+        }
+      } else if (this.gameState === 'gameOver') {
+        this.killCount = 0;
+        this.player.reset(this.scale.width / 2, this.scale.height * 0.75);
+        this.startStage(1);
+      } else if (this.gameState === 'allClear') {
         this.killCount = 0;
         this.player.reset(this.scale.width / 2, this.scale.height * 0.75);
         this.startStage(1);
