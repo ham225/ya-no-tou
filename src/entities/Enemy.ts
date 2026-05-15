@@ -12,6 +12,11 @@ const BOMB_RADIUS = 90;
 const BOMB_DAMAGE = 2;
 const SPLITTER_CHILDREN = 2;
 
+export interface EnemyScaling {
+  hpMult: number;
+  speedMult: number;
+}
+
 export interface EnemyDeathContext {
   scene: Phaser.Scene;
   playerX: number;
@@ -28,13 +33,20 @@ export class Enemy extends Phaser.GameObjects.Rectangle {
   readonly contactDamage: number;
   readonly type: EnemyType;
   readonly def: EnemyTypeDef;
+  readonly speed: number;
 
   private lastShotTime = 0;
   private readonly spawnedAt: number;
   private readonly zigzagPhase: number;
   private chaserMult = 1;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, type: EnemyType) {
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    type: EnemyType,
+    scaling: EnemyScaling = { hpMult: 1, speedMult: 1 },
+  ) {
     const def = ENEMY_TYPE_DEFS[type];
     super(scene, x, y, def.size, def.size, def.color);
     scene.add.existing(this);
@@ -44,8 +56,9 @@ export class Enemy extends Phaser.GameObjects.Rectangle {
 
     this.type = type;
     this.def = def;
-    this.hp = def.hp;
-    this.maxHp = def.hp;
+    this.hp = Math.max(1, Math.ceil(def.hp * scaling.hpMult));
+    this.maxHp = this.hp;
+    this.speed = def.speed * scaling.speedMult;
     this.contactDamage = def.contactDamage;
     this.spawnedAt = scene.time.now;
     this.zigzagPhase = Math.random() * Math.PI * 2;
@@ -77,7 +90,7 @@ export class Enemy extends Phaser.GameObjects.Rectangle {
     if (!this.isAlive) return;
     switch (this.def.ai) {
       case 'chase':
-        this.moveStraight(targetX, targetY, this.def.speed);
+        this.moveStraight(targetX, targetY, this.speed);
         break;
       case 'zigzag':
         this.moveZigzag(targetX, targetY, time);
@@ -87,7 +100,7 @@ export class Enemy extends Phaser.GameObjects.Rectangle {
         break;
       case 'chaser':
         this.chaserMult = Math.min(CHASER_MAX_MULT, this.chaserMult + CHASER_ACCEL_PER_SEC * dtSec);
-        this.moveStraight(targetX, targetY, this.def.speed * this.chaserMult);
+        this.moveStraight(targetX, targetY, this.speed * this.chaserMult);
         break;
     }
   }
@@ -141,7 +154,7 @@ export class Enemy extends Phaser.GameObjects.Rectangle {
     const nx = dx / d;
     const ny = dy / d;
     const wave = Math.sin((time - this.spawnedAt) * ZIGZAG_FREQ + this.zigzagPhase) * ZIGZAG_AMPLITUDE;
-    const speed = this.def.speed;
+    const speed = this.speed;
     this.body.setVelocity((nx + -ny * wave) * speed, (ny + nx * wave) * speed);
   }
 
@@ -155,7 +168,7 @@ export class Enemy extends Phaser.GameObjects.Rectangle {
     const dy = ty - this.y;
     const d = Math.hypot(dx, dy);
     if (d > SHOOTER_STOP_DISTANCE) {
-      this.moveStraight(tx, ty, this.def.speed);
+      this.moveStraight(tx, ty, this.speed);
     } else {
       this.body.setVelocity(0, 0);
     }

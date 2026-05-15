@@ -275,11 +275,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnStageEnemies(spawns: { type: EnemyType; count: number }[]): void {
+    const scaling = {
+      hpMult: 1 + (this.currentStage - 1) * 0.2,
+      speedMult: 1 + (this.currentStage - 1) * 0.04,
+    };
     spawns.forEach((s) => {
       for (let i = 0; i < s.count; i++) {
         const x = Phaser.Math.Between(50, this.scale.width - 50);
         const y = Phaser.Math.Between(100, 240);
-        this.enemies.add(new Enemy(this, x, y, s.type));
+        this.enemies.add(new Enemy(this, x, y, s.type, scaling));
       }
     });
   }

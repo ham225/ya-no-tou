@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { PlayerStats } from '../state/PlayerStats';
 
 export const PLAYER_SIZE = 36;
-const PLAYER_INVULNERABLE_MS = 600;
+const PLAYER_INVULNERABLE_MS = 400;
 const MOVING_VELOCITY_THRESHOLD = 5;
 
 export class Player extends Phaser.GameObjects.Rectangle {

@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 import { EnemyBullet } from './EnemyBullet';
 
-export const BOSS_HP = 30;
+export const BOSS_HP = 50;
 const BOSS_SIZE = 84;
-const BOSS_CHASE_SPEED = 38;
-const BOSS_CHARGE_SPEED = 260;
-const BOSS_PATTERN_INTERVAL_MS = 3200;
-const BOSS_BURST_BULLETS = 12;
-const BOSS_BURST_SPEED = 200;
+const BOSS_CHASE_SPEED = 42;
+const BOSS_CHARGE_SPEED = 280;
+const BOSS_PATTERN_INTERVAL_MS = 2700;
+const BOSS_BURST_BULLETS = 14;
+const BOSS_BURST_SPEED = 220;
 const BOSS_INVULNERABLE_MS = 80;
 
 type BossPhase = 'chase' | 'burst' | 'charge';

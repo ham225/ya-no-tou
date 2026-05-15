@@ -2,7 +2,7 @@ export const STATS_BASE = {
   attackIntervalMs: 500,
   damage: 1,
   moveSpeed: 220,
-  maxHp: 5,
+  maxHp: 4,
 } as const;
 
 export const STATS_LIMITS = {

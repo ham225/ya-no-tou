@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 const BULLET_RADIUS = 5;
-const BULLET_DEFAULT_SPEED = 260;
+const BULLET_DEFAULT_SPEED = 300;
 export const ENEMY_BULLET_DAMAGE = 1;
 
 export class EnemyBullet extends Phaser.GameObjects.Arc {
