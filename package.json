@@ -1,0 +1,19 @@
+{
+  "name": "ya-no-tou",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "矢の塔 - スクロール型ローグライク",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.0",
+    "vite": "^5.4.0"
+  }
+}
