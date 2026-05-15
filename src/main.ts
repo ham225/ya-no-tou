@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { GameScene } from './scenes/GameScene';
+import { TitleScene } from './scenes/TitleScene';
+import { AdManager } from './ads/AdManager';
 
 const GAME_WIDTH = 540;
 const GAME_HEIGHT = 960;
@@ -21,10 +23,11 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [GameScene],
+  scene: [TitleScene, GameScene],
   input: {
     activePointers: 2,
   },
 };
 
 new Phaser.Game(config);
+AdManager.init().catch(() => undefined);

@@ -9,6 +9,8 @@ import { OrbitArrow, ORBIT_DAMAGE, ORBIT_HIT_RADIUS } from '../entities/OrbitArr
 import { STAGES } from '../config/Stages';
 import { PlayerStats } from '../state/PlayerStats';
 import { UpgradeDef, rollUpgradeChoices } from '../upgrades/Upgrades';
+import { SoundFx } from '../audio/SoundFx';
+import { Storage } from '../state/Storage';
 
 const JOYSTICK_RADIUS = 80;
 const JOYSTICK_DEADZONE = 8;
@@ -43,6 +45,7 @@ export class GameScene extends Phaser.Scene {
   private bossLabel!: Phaser.GameObjects.Text;
   private overlayTitle!: Phaser.GameObjects.Text;
   private overlaySub!: Phaser.GameObjects.Text;
+  private muteButton!: Phaser.GameObjects.Text;
 
   private upgradeUI: Phaser.GameObjects.GameObject[] = [];
 
@@ -186,6 +189,22 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(1, 0.5)
       .setDepth(100);
 
+    this.muteButton = this.add
+      .text(width - 20, 26, SoundFx.isMuted() ? '🔇' : '🔊', {
+        fontFamily: 'sans-serif',
+        fontSize: '22px',
+        color: '#e9e9ff',
+        backgroundColor: '#22223388',
+        padding: { x: 6, y: 4 },
+      })
+      .setOrigin(1, 0.5)
+      .setDepth(150)
+      .setInteractive({ useHandCursor: true });
+    this.muteButton.on('pointerdown', () => {
+      const muted = SoundFx.toggleMute();
+      this.muteButton.setText(muted ? '🔇' : '🔊');
+    });
+
     this.bossBarBg = this.add
       .rectangle(width / 2, 100, BOSS_BAR_WIDTH + 4, 16, 0x222233, 0.9)
       .setOrigin(0.5)
@@ -308,6 +327,7 @@ export class GameScene extends Phaser.Scene {
     this.bossBarBg.setVisible(true);
     this.bossBarFill.setVisible(true);
     this.bossLabel.setVisible(true);
+    SoundFx.bossSpawn();
   }
 
   private updatePlayerMovement(): void {
@@ -364,6 +384,7 @@ export class GameScene extends Phaser.Scene {
         const hitRange = (84 + ORBIT_HIT_RADIUS) / 2;
         if (Phaser.Math.Distance.Between(orb.x, orb.y, this.boss.x, this.boss.y) < hitRange) {
           this.boss.takeDamage(ORBIT_DAMAGE, time);
+          SoundFx.enemyHit();
           orb.recordHit(this.boss, time);
         }
       }
@@ -393,6 +414,7 @@ export class GameScene extends Phaser.Scene {
       this.arrows.add(arrow);
     }
     this.player.markAttacked(time);
+    SoundFx.shoot();
   }
 
   private cullOffscreen(): void {
@@ -454,9 +476,12 @@ export class GameScene extends Phaser.Scene {
     if (!enemy.isAlive) return;
     enemy.takeDamage(amount);
     if (!enemy.isAlive) {
+      SoundFx.enemyKill();
       enemy.handleDeath(this.makeDeathContext());
       enemy.destroy();
       this.killCount++;
+    } else {
+      SoundFx.enemyHit();
     }
   }
 
@@ -481,6 +506,7 @@ export class GameScene extends Phaser.Scene {
     if (arrow.hitTargets.has(this.boss)) return;
     arrow.hitTargets.add(this.boss);
     this.boss.takeDamage(arrow.damage, this.time.now);
+    SoundFx.enemyHit();
     if (arrow.shouldDestroyAfterHit()) {
       arrow.destroy();
     }
@@ -489,17 +515,23 @@ export class GameScene extends Phaser.Scene {
   private handleEnemyHitPlayer = (_playerObj: unknown, enemyObj: unknown): void => {
     const enemy = enemyObj as Enemy;
     if (!enemy.isAlive) return;
-    this.player.takeDamage(enemy.contactDamage, this.time.now);
+    if (this.player.takeDamage(enemy.contactDamage, this.time.now)) {
+      SoundFx.playerHurt();
+    }
   };
 
   private handleBossHitPlayer = (): void => {
     if (!this.boss || !this.boss.isAlive) return;
-    this.player.takeDamage(this.boss.contactDamage, this.time.now);
+    if (this.player.takeDamage(this.boss.contactDamage, this.time.now)) {
+      SoundFx.playerHurt();
+    }
   };
 
   private handleBulletHitPlayer = (_playerObj: unknown, bulletObj: unknown): void => {
     const bullet = bulletObj as EnemyBullet;
-    this.player.takeDamage(bullet.damage, this.time.now);
+    if (this.player.takeDamage(bullet.damage, this.time.now)) {
+      SoundFx.playerHurt();
+    }
     bullet.destroy();
   };
 
@@ -526,15 +558,19 @@ export class GameScene extends Phaser.Scene {
 
     if (this.currentStage >= STAGES.length) {
       this.gameState = 'allClear';
+      const updated = Storage.updateBest({ stage: this.currentStage, kills: this.killCount });
+      const bestNote = updated ? '\n★ベスト更新!' : '';
       this.overlayTitle.setText('全クリア!').setVisible(true);
       this.overlaySub
-        .setText(`撃破数 ${this.killCount}\nタップでステージ1から再挑戦`)
+        .setText(`撃破数 ${this.killCount}${bestNote}\nタップでステージ1から再挑戦`)
         .setVisible(true);
       this.overlayLockedUntil = time + OVERLAY_TAP_LOCK_MS;
+      SoundFx.allClear();
       return;
     }
 
     this.gameState = 'upgradeSelect';
+    SoundFx.stageClear();
     this.showUpgradeChoices();
   }
 
@@ -542,12 +578,15 @@ export class GameScene extends Phaser.Scene {
     this.gameState = 'gameOver';
     this.player.body.setVelocity(0, 0);
     this.enemyBullets.clear(true, true);
+    const updated = Storage.updateBest({ stage: this.currentStage, kills: this.killCount });
+    const bestNote = updated ? '\n★ベスト更新!' : '';
     this.overlayTitle.setText('ゲームオーバー').setVisible(true);
     this.overlaySub
-      .setText(`到達ステージ ${this.currentStage} / 撃破 ${this.killCount}\nタップでリトライ`)
+      .setText(`到達ステージ ${this.currentStage} / 撃破 ${this.killCount}${bestNote}\nタップでリトライ`)
       .setVisible(true);
     this.overlayLockedUntil = time + OVERLAY_TAP_LOCK_MS;
     this.clearJoystick();
+    SoundFx.gameOver();
   }
 
   private showUpgradeChoices(): void {
@@ -649,6 +688,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private selectUpgrade(upgrade: UpgradeDef): void {
+    SoundFx.upgradeSelect();
     upgrade.apply(this.playerStats, this.player);
     this.clearUpgradeUI();
     this.startStage(this.currentStage + 1);
@@ -668,6 +708,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
+    if (Phaser.Geom.Rectangle.Contains(this.muteButton.getBounds(), pointer.x, pointer.y)) {
+      return;
+    }
     if (this.gameState === 'upgradeSelect') return;
     if (this.gameState !== 'playing') {
       if (this.time.now < this.overlayLockedUntil) return;
