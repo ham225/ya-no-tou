@@ -289,7 +289,7 @@ export class GameScene extends Phaser.Scene {
 
     // --- ミュートボタン (右上) ---
     this.muteButton = this.add
-      .text(width - 20, 22, SoundFx.isMuted() ? '🔇' : '🔊', {
+      .text(width - 20, 22, SoundFx.isMuted() ? '♪×' : '♪', {
         fontFamily: 'sans-serif',
         fontSize: '20px',
         color: '#e9e9ff',
@@ -301,7 +301,7 @@ export class GameScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.muteButton.on('pointerdown', () => {
       const muted = SoundFx.toggleMute();
-      this.muteButton.setText(muted ? '🔇' : '🔊');
+      this.muteButton.setText(muted ? '♪×' : '♪');
     });
 
     // --- ボスバー (ステージ10) ---
@@ -392,13 +392,13 @@ export class GameScene extends Phaser.Scene {
 
     const stage = STAGES[this.currentStage - 1];
     const stageName = stage ? stage.name : '???';
-    const stageStr = `🏰 ステージ ${this.currentStage}  ・  ${stageName}`;
+    const stageStr = `■ ステージ ${this.currentStage}  ・  ${stageName}`;
     if (cache.stage !== stageStr) {
       this.stageText.setText(stageStr);
       cache.stage = stageStr;
     }
 
-    const killStr = `⚔ ${this.killCount}`;
+    const killStr = `撃 ${this.killCount}`;
     if (cache.kill !== killStr) {
       this.killText.setText(killStr);
       cache.kill = killStr;
@@ -409,9 +409,9 @@ export class GameScene extends Phaser.Scene {
     this.applyStat('atk', `ATK ${s.damage}`, s.damageBonus > 0);
     this.applyStat('spd', `SPD ×${spdMult.toFixed(2)}`, s.attackIntervalMult < 1);
     this.applyStat('mov', `MOV ×${s.moveSpeedMult.toFixed(2)}`, s.moveSpeedMult > 1);
-    this.applyStat('multi', `🎯×${s.multiShot}`, s.multiShot > 1);
-    this.applyStat('pierce', `💥${s.pierce}`, s.pierce > 0);
-    this.applyStat('orbit', `🌀${s.orbitCount}`, s.orbitCount > 0);
+    this.applyStat('multi', `多×${s.multiShot}`, s.multiShot > 1);
+    this.applyStat('pierce', `貫${s.pierce}`, s.pierce > 0);
+    this.applyStat('orbit', `周${s.orbitCount}`, s.orbitCount > 0);
 
     if (this.boss) {
       const ratio = this.boss.hp / this.boss.maxHp;
@@ -835,13 +835,14 @@ export class GameScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
 
       const iconBg = this.add
-        .circle(width / 2 - cardW / 2 + 56, cy, 38, 0xffffff, 0.85)
+        .circle(width / 2 - cardW / 2 + 56, cy, 38, 0xffffff, 0.9)
+        .setStrokeStyle(2, 0x1a1a2e, 0.6)
         .setDepth(201);
 
       const iconText = this.add
         .text(width / 2 - cardW / 2 + 56, cy, upgrade.icon, {
           fontFamily: 'sans-serif',
-          fontSize: '42px',
+          fontSize: '36px',
           color: '#1a1a2e',
           fontStyle: 'bold',
         })
@@ -852,10 +853,8 @@ export class GameScene extends Phaser.Scene {
         .text(width / 2 + 20, cy - 22, upgrade.label, {
           fontFamily: 'sans-serif',
           fontSize: '24px',
-          color: '#ffffff',
+          color: '#1a1a2e',
           fontStyle: 'bold',
-          stroke: '#1a1a2e',
-          strokeThickness: 4,
         })
         .setOrigin(0.5)
         .setDepth(202);
@@ -864,10 +863,8 @@ export class GameScene extends Phaser.Scene {
         .text(width / 2 + 20, cy + 18, upgrade.description, {
           fontFamily: 'sans-serif',
           fontSize: '15px',
-          color: '#ffffff',
+          color: '#1a1a2e',
           fontStyle: 'bold',
-          stroke: '#1a1a2e',
-          strokeThickness: 3,
         })
         .setOrigin(0.5)
         .setDepth(202);

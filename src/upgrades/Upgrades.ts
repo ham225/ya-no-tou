@@ -26,7 +26,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'ATTACK_UP',
     label: '攻撃力UP',
     description: '矢のダメージ +1',
-    icon: '⚔',
+    icon: '攻',
     color: 0xffc266,
     canTake: () => true,
     apply: (stats) => {
@@ -37,7 +37,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'ATTACK_SPEED',
     label: '連射UP',
     description: '攻撃間隔 -20%',
-    icon: '⏱',
+    icon: '速',
     color: 0x9bd2ff,
     canTake: (stats) => stats.attackIntervalMult > STATS_LIMITS.attackIntervalMultMin + 0.01,
     apply: (stats) => {
@@ -51,7 +51,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'MULTI_SHOT',
     label: '多重射撃',
     description: '同時発射数 +1',
-    icon: '🏹',
+    icon: '矢',
     color: 0xffe066,
     canTake: (stats) => stats.multiShot < STATS_LIMITS.multiShotMax,
     apply: (stats) => {
@@ -62,7 +62,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'PIERCE',
     label: '貫通',
     description: '矢がもう1体貫通',
-    icon: '→',
+    icon: '貫',
     color: 0xff6e9a,
     canTake: (stats) => stats.pierce < STATS_LIMITS.pierceMax,
     apply: (stats) => {
@@ -73,7 +73,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'MAX_HP',
     label: 'HP上限UP',
     description: '最大HP +1(+1回復)',
-    icon: '❤',
+    icon: '心',
     color: 0x66ff88,
     canTake: () => true,
     apply: (stats, player) => {
@@ -85,7 +85,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'HEAL',
     label: '回復',
     description: 'HP +3',
-    icon: '+',
+    icon: '回',
     color: 0xa6e9a6,
     canTake: (stats, player) => player.hp < stats.maxHp,
     apply: (stats, player) => {
@@ -96,7 +96,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'MOVE_SPEED',
     label: '機動力UP',
     description: '移動速度 +15%',
-    icon: '💨',
+    icon: '走',
     color: 0xc8b6ff,
     canTake: (stats) => stats.moveSpeedMult < STATS_LIMITS.moveSpeedMultMax - 0.01,
     apply: (stats) => {
@@ -107,7 +107,7 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
     id: 'ORBIT',
     label: '周回の矢',
     description: 'プレイヤー周囲を回る矢 +1',
-    icon: '○',
+    icon: '周',
     color: 0xffd066,
     canTake: (stats) => stats.orbitCount < STATS_LIMITS.orbitCountMax,
     apply: (stats) => {
