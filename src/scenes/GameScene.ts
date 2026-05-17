@@ -46,7 +46,11 @@ export class GameScene extends Phaser.Scene {
   private hpBarFill!: Phaser.GameObjects.Rectangle;
   private hpText!: Phaser.GameObjects.Text;
   private hpHeart!: Phaser.GameObjects.Text;
+  private hpTicks!: Phaser.GameObjects.Graphics;
+  private hpBarLeftX = 0;
+  private hpBarRowY = 0;
   private lastHpDisplayed = -1;
+  private lastMaxHpDrawn = -1;
   private stageText!: Phaser.GameObjects.Text;
   private killText!: Phaser.GameObjects.Text;
   private statTexts: Record<'atk' | 'spd' | 'mov' | 'multi' | 'pierce' | 'orbit', Phaser.GameObjects.Text> =
@@ -214,8 +218,11 @@ export class GameScene extends Phaser.Scene {
         color: '#0a0a1f',
       })
       .setOrigin(0.5, 0.5)
-      .setDepth(102);
-    this.hudElements.push(this.hpHeart, hpBarBg, this.hpBarFill, this.hpText);
+      .setDepth(103);
+    this.hpTicks = this.add.graphics().setDepth(102);
+    this.hpBarLeftX = hpBarX + 3;
+    this.hpBarRowY = hpRowY;
+    this.hudElements.push(this.hpHeart, hpBarBg, this.hpBarFill, this.hpTicks, this.hpText);
 
     // --- 撃破数 (右) ---
     const killBg = this.add
@@ -356,6 +363,23 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private redrawHpTicks(maxHp: number): void {
+    this.hpTicks.clear();
+    if (maxHp < 2) return;
+    const g = this.hpTicks;
+    g.lineStyle(2, 0x0a0a1f, 0.65);
+    const segW = HP_BAR_WIDTH / maxHp;
+    const topY = this.hpBarRowY - 8;
+    const botY = this.hpBarRowY + 8;
+    for (let i = 1; i < maxHp; i++) {
+      const x = this.hpBarLeftX + segW * i;
+      g.beginPath();
+      g.moveTo(x, topY);
+      g.lineTo(x, botY);
+      g.strokePath();
+    }
+  }
+
   private updateHUD(): void {
     const hp = this.player.hp;
     const maxHp = this.player.maxHp;
@@ -371,6 +395,11 @@ export class GameScene extends Phaser.Scene {
       }
       this.hpText.setText(`HP ${hp} / ${maxHp}`);
       cache.hpRatio = hpRatio;
+    }
+
+    if (this.lastMaxHpDrawn !== maxHp) {
+      this.redrawHpTicks(maxHp);
+      this.lastMaxHpDrawn = maxHp;
     }
 
     // HP減少時の点滅演出
@@ -894,6 +923,7 @@ export class GameScene extends Phaser.Scene {
     this.killCount = 0;
     this.player.reset(this.scale.width / 2, this.scale.height * 0.75);
     this.lastHpDisplayed = -1;
+    this.lastMaxHpDrawn = -1;
     this.lastHudCache.hpRatio = -1;
     this.lastHudCache.stage = '';
     this.lastHudCache.kill = '';

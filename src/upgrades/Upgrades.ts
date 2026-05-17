@@ -72,13 +72,13 @@ export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
   MAX_HP: {
     id: 'MAX_HP',
     label: 'HP上限UP',
-    description: '最大HP +1(+1回復)',
+    description: '最大HP +1 & 完全回復',
     icon: '❤',
     color: 0x66ff88,
     canTake: () => true,
     apply: (stats, player) => {
       stats.maxHpBonus += 1;
-      player.hp = Math.min(stats.maxHp, player.hp + 1);
+      player.hp = stats.maxHp;
     },
   },
   HEAL: {
