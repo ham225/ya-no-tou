@@ -16,13 +16,7 @@ import { AdManager } from '../ads/AdManager';
 const JOYSTICK_RADIUS = 80;
 const JOYSTICK_DEADZONE = 8;
 const OVERLAY_TAP_LOCK_MS = 500;
-const HP_BAR_WIDTH = 180;
-const HP_COLOR_FULL = 0x66ff88;
-const HP_COLOR_MID = 0xffcc44;
-const HP_COLOR_LOW = 0xff5566;
-const PANEL_BG_COLOR = 0x1a1a3a;
-const PANEL_BG_ALPHA = 0.75;
-const PANEL_STROKE_COLOR = 0x4a4a7a;
+const HP_BAR_WIDTH = 156;
 const BOSS_BAR_WIDTH = 360;
 const MULTISHOT_SPREAD_RAD = 0.22;
 
@@ -45,38 +39,8 @@ export class GameScene extends Phaser.Scene {
 
   private hpBarFill!: Phaser.GameObjects.Rectangle;
   private hpText!: Phaser.GameObjects.Text;
-  private hpHeart!: Phaser.GameObjects.Text;
-  private hpTicks!: Phaser.GameObjects.Graphics;
-  private hpBarLeftX = 0;
-  private hpBarRowY = 0;
-  private lastHpDisplayed = -1;
-  private lastMaxHpDrawn = -1;
   private stageText!: Phaser.GameObjects.Text;
   private killText!: Phaser.GameObjects.Text;
-  private statTexts: Record<'atk' | 'spd' | 'mov' | 'multi' | 'pierce' | 'orbit', Phaser.GameObjects.Text> =
-    {} as never;
-  private hudElements: Phaser.GameObjects.GameObject[] = [];
-  private lastHudCache: {
-    stage: string;
-    kill: string;
-    hpRatio: number;
-    atk: string;
-    spd: string;
-    mov: string;
-    multi: string;
-    pierce: string;
-    orbit: string;
-  } = {
-    stage: '',
-    kill: '',
-    hpRatio: -1,
-    atk: '',
-    spd: '',
-    mov: '',
-    multi: '',
-    pierce: '',
-    orbit: '',
-  };
   private bossBarBg!: Phaser.GameObjects.Rectangle;
   private bossBarFill!: Phaser.GameObjects.Rectangle;
   private bossLabel!: Phaser.GameObjects.Text;
@@ -181,7 +145,7 @@ export class GameScene extends Phaser.Scene {
   private createHUD(): void {
     const { width, height } = this.scale;
 
-    const titleText = this.add
+    this.add
       .text(width / 2, 14, '矢の塔', {
         fontFamily: 'sans-serif',
         fontSize: '16px',
@@ -189,116 +153,47 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0)
       .setDepth(100);
-    this.hudElements.push(titleText);
 
-    // --- HPバー (左) ---
-    const hpRowY = 46;
-    const hpBarX = 38;
-    this.hpHeart = this.add
-      .text(20, hpRowY, '♥', {
-        fontFamily: 'sans-serif',
-        fontSize: '20px',
-        color: '#ff6677',
-      })
-      .setOrigin(0.5, 0.5)
-      .setDepth(101);
-    const hpBarBg = this.add
-      .rectangle(hpBarX, hpRowY, HP_BAR_WIDTH + 6, 22, PANEL_BG_COLOR, 0.9)
+    this.add
+      .rectangle(20, 60, HP_BAR_WIDTH + 4, 18, 0x333344, 0.85)
       .setOrigin(0, 0.5)
-      .setStrokeStyle(1, PANEL_STROKE_COLOR, 0.9)
       .setDepth(100);
     this.hpBarFill = this.add
-      .rectangle(hpBarX + 3, hpRowY, HP_BAR_WIDTH, 16, HP_COLOR_FULL)
+      .rectangle(22, 60, HP_BAR_WIDTH, 14, 0x66ff88)
       .setOrigin(0, 0.5)
       .setDepth(101);
     this.hpText = this.add
-      .text(hpBarX + 3 + HP_BAR_WIDTH / 2, hpRowY, '', {
+      .text(22 + HP_BAR_WIDTH / 2, 60, '', {
+        fontFamily: 'sans-serif',
+        fontSize: '12px',
+        color: '#000',
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(102);
+
+    this.stageText = this.add
+      .text(width / 2, 60, '', {
         fontFamily: 'sans-serif',
         fontSize: '14px',
-        color: '#0a0a1f',
-      })
-      .setOrigin(0.5, 0.5)
-      .setDepth(103);
-    this.hpTicks = this.add.graphics().setDepth(102);
-    this.hpBarLeftX = hpBarX + 3;
-    this.hpBarRowY = hpRowY;
-    this.hudElements.push(this.hpHeart, hpBarBg, this.hpBarFill, this.hpTicks, this.hpText);
-
-    // --- 撃破数 (右) ---
-    const killBg = this.add
-      .rectangle(width - 22, hpRowY, 100, 22, PANEL_BG_COLOR, PANEL_BG_ALPHA)
-      .setOrigin(1, 0.5)
-      .setStrokeStyle(1, PANEL_STROKE_COLOR, 0.9)
-      .setDepth(100);
-    this.killText = this.add
-      .text(width - 28, hpRowY, '', {
-        fontFamily: 'sans-serif',
-        fontSize: '15px',
-        color: '#ffe066',
-        stroke: '#1a1a3a',
-        strokeThickness: 2,
-      })
-      .setOrigin(1, 0.5)
-      .setDepth(101);
-    this.hudElements.push(killBg, this.killText);
-
-    // --- ステージ情報パネル (中央) ---
-    const stageRowY = 80;
-    const stageBg = this.add
-      .rectangle(width / 2, stageRowY, width - 40, 26, PANEL_BG_COLOR, PANEL_BG_ALPHA)
-      .setOrigin(0.5)
-      .setStrokeStyle(1, PANEL_STROKE_COLOR, 0.9)
-      .setDepth(100);
-    this.stageText = this.add
-      .text(width / 2, stageRowY, '', {
-        fontFamily: 'sans-serif',
-        fontSize: '15px',
         color: '#e9e9ff',
         align: 'center',
-        stroke: '#1a1a3a',
-        strokeThickness: 2,
       })
       .setOrigin(0.5, 0.5)
-      .setDepth(101);
-    this.hudElements.push(stageBg, this.stageText);
-
-    // --- ステータスストリップ (中央) ---
-    const statRowY = 112;
-    const statBg = this.add
-      .rectangle(width / 2, statRowY, width - 40, 24, PANEL_BG_COLOR, PANEL_BG_ALPHA)
-      .setOrigin(0.5)
-      .setStrokeStyle(1, PANEL_STROKE_COLOR, 0.9)
       .setDepth(100);
-    this.hudElements.push(statBg);
-    const statBaseStyle = {
-      fontFamily: 'sans-serif',
-      fontSize: '13px',
-      color: '#e9e9ff',
-    };
-    const statOrder: Array<'atk' | 'spd' | 'mov' | 'multi' | 'pierce' | 'orbit'> = [
-      'atk',
-      'spd',
-      'mov',
-      'multi',
-      'pierce',
-      'orbit',
-    ];
-    const slotWidth = (width - 40) / statOrder.length;
-    const slotLeft = 20;
-    statOrder.forEach((key, i) => {
-      const t = this.add
-        .text(slotLeft + slotWidth * (i + 0.5), statRowY, '', statBaseStyle)
-        .setOrigin(0.5, 0.5)
-        .setDepth(101);
-      this.statTexts[key] = t;
-      this.hudElements.push(t);
-    });
 
-    // --- ミュートボタン (右上) ---
-    this.muteButton = this.add
-      .text(width - 20, 22, SoundFx.isMuted() ? '♪×' : '♪', {
+    this.killText = this.add
+      .text(width - 20, 60, '', {
         fontFamily: 'sans-serif',
-        fontSize: '20px',
+        fontSize: '14px',
+        color: '#e9e9ff',
+      })
+      .setOrigin(1, 0.5)
+      .setDepth(100);
+
+    this.muteButton = this.add
+      .text(width - 20, 26, SoundFx.isMuted() ? '🔇' : '🔊', {
+        fontFamily: 'sans-serif',
+        fontSize: '22px',
         color: '#e9e9ff',
         backgroundColor: '#22223388',
         padding: { x: 6, y: 4 },
@@ -308,27 +203,24 @@ export class GameScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.muteButton.on('pointerdown', () => {
       const muted = SoundFx.toggleMute();
-      this.muteButton.setText(muted ? '♪×' : '♪');
+      this.muteButton.setText(muted ? '🔇' : '🔊');
     });
 
-    // --- ボスバー (ステージ10) ---
     this.bossBarBg = this.add
-      .rectangle(width / 2, 144, BOSS_BAR_WIDTH + 4, 16, 0x222233, 0.9)
+      .rectangle(width / 2, 100, BOSS_BAR_WIDTH + 4, 16, 0x222233, 0.9)
       .setOrigin(0.5)
       .setDepth(100)
       .setVisible(false);
     this.bossBarFill = this.add
-      .rectangle(width / 2 - BOSS_BAR_WIDTH / 2, 144, BOSS_BAR_WIDTH, 12, 0xff3060)
+      .rectangle(width / 2 - BOSS_BAR_WIDTH / 2, 100, BOSS_BAR_WIDTH, 12, 0xff3060)
       .setOrigin(0, 0.5)
       .setDepth(101)
       .setVisible(false);
     this.bossLabel = this.add
-      .text(width / 2, 128, 'BOSS', {
+      .text(width / 2, 84, 'BOSS', {
         fontFamily: 'sans-serif',
-        fontSize: '14px',
+        fontSize: '13px',
         color: '#ff8aa0',
-        stroke: '#1a1a3a',
-        strokeThickness: 2,
       })
       .setOrigin(0.5)
       .setDepth(100)
@@ -357,109 +249,21 @@ export class GameScene extends Phaser.Scene {
       .setVisible(false);
   }
 
-  private setHudVisible(visible: boolean): void {
-    for (const el of this.hudElements) {
-      (el as Phaser.GameObjects.GameObject & { setVisible: (v: boolean) => void }).setVisible(visible);
-    }
-  }
-
-  private redrawHpTicks(maxHp: number): void {
-    this.hpTicks.clear();
-    if (maxHp < 2) return;
-    const g = this.hpTicks;
-    g.lineStyle(2, 0x0a0a1f, 0.65);
-    const segW = HP_BAR_WIDTH / maxHp;
-    const topY = this.hpBarRowY - 8;
-    const botY = this.hpBarRowY + 8;
-    for (let i = 1; i < maxHp; i++) {
-      const x = this.hpBarLeftX + segW * i;
-      g.beginPath();
-      g.moveTo(x, topY);
-      g.lineTo(x, botY);
-      g.strokePath();
-    }
-  }
-
   private updateHUD(): void {
-    const hp = this.player.hp;
-    const maxHp = this.player.maxHp;
-    const hpRatio = hp / maxHp;
-    const cache = this.lastHudCache;
-
-    if (cache.hpRatio !== hpRatio) {
-      this.hpBarFill.width = HP_BAR_WIDTH * hpRatio;
-      const hpColor =
-        hpRatio > 0.6 ? HP_COLOR_FULL : hpRatio > 0.3 ? HP_COLOR_MID : HP_COLOR_LOW;
-      if (this.hpBarFill.fillColor !== hpColor) {
-        this.hpBarFill.setFillStyle(hpColor);
-      }
-      this.hpText.setText(`HP ${hp} / ${maxHp}`);
-      cache.hpRatio = hpRatio;
-    }
-
-    if (this.lastMaxHpDrawn !== maxHp) {
-      this.redrawHpTicks(maxHp);
-      this.lastMaxHpDrawn = maxHp;
-    }
-
-    // HP減少時の点滅演出
-    if (this.lastHpDisplayed >= 0 && hp < this.lastHpDisplayed) {
-      this.tweens.killTweensOf([this.hpBarFill, this.hpHeart]);
-      this.tweens.add({
-        targets: [this.hpBarFill, this.hpHeart],
-        alpha: { from: 0.3, to: 1 },
-        duration: 220,
-        ease: 'Cubic.easeOut',
-      });
-      this.tweens.add({
-        targets: this.hpHeart,
-        scale: { from: 1.4, to: 1 },
-        duration: 260,
-        ease: 'Back.easeOut',
-      });
-    }
-    this.lastHpDisplayed = hp;
+    const hpRatio = this.player.hp / this.player.maxHp;
+    this.hpBarFill.width = HP_BAR_WIDTH * hpRatio;
+    this.hpText.setText(`HP ${this.player.hp}/${this.player.maxHp}`);
 
     const stage = STAGES[this.currentStage - 1];
     const stageName = stage ? stage.name : '???';
-    const stageStr = `■ ステージ ${this.currentStage}  ・  ${stageName}`;
-    if (cache.stage !== stageStr) {
-      this.stageText.setText(stageStr);
-      cache.stage = stageStr;
-    }
+    this.stageText.setText(`ステージ ${this.currentStage}\n${stageName}`);
 
-    const killStr = `撃 ${this.killCount}`;
-    if (cache.kill !== killStr) {
-      this.killText.setText(killStr);
-      cache.kill = killStr;
-    }
-
-    const s = this.playerStats;
-    const spdMult = 1 / s.attackIntervalMult;
-    this.applyStat('atk', `ATK ${s.damage}`, s.damageBonus > 0);
-    this.applyStat('spd', `SPD ×${spdMult.toFixed(2)}`, s.attackIntervalMult < 1);
-    this.applyStat('mov', `MOV ×${s.moveSpeedMult.toFixed(2)}`, s.moveSpeedMult > 1);
-    this.applyStat('multi', `多×${s.multiShot}`, s.multiShot > 1);
-    this.applyStat('pierce', `貫${s.pierce}`, s.pierce > 0);
-    this.applyStat('orbit', `周${s.orbitCount}`, s.orbitCount > 0);
+    this.killText.setText(`撃破: ${this.killCount}`);
 
     if (this.boss) {
       const ratio = this.boss.hp / this.boss.maxHp;
       this.bossBarFill.width = BOSS_BAR_WIDTH * ratio;
     }
-  }
-
-  private applyStat(
-    key: 'atk' | 'spd' | 'mov' | 'multi' | 'pierce' | 'orbit',
-    text: string,
-    highlight: boolean,
-  ): void {
-    const cache = this.lastHudCache;
-    if (cache[key] === text) return;
-    const t = this.statTexts[key];
-    t.setText(text);
-    t.setColor(highlight ? '#ffe066' : '#8a8aaa');
-    cache[key] = text;
   }
 
   private startStage(stage: number): void {
@@ -487,7 +291,6 @@ export class GameScene extends Phaser.Scene {
     this.gameState = 'playing';
     this.overlayTitle.setVisible(false);
     this.overlaySub.setVisible(false);
-    this.setHudVisible(true);
     this.updateHUD();
   }
 
@@ -765,7 +568,6 @@ export class GameScene extends Phaser.Scene {
 
     if (this.currentStage >= STAGES.length) {
       this.gameState = 'allClear';
-      this.setHudVisible(false);
       const updated = Storage.updateBest({ stage: this.currentStage, kills: this.killCount });
       const bestNote = updated ? '\n★ベスト更新!' : '';
       this.overlayTitle.setText('全クリア!').setVisible(true);
@@ -778,14 +580,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.gameState = 'upgradeSelect';
-    this.setHudVisible(false);
     SoundFx.stageClear();
     this.showUpgradeChoices();
   }
 
   private enterGameOver(time: number): void {
     this.gameState = 'gameOver';
-    this.setHudVisible(false);
     this.player.body.setVelocity(0, 0);
     this.enemyBullets.clear(true, true);
     const updated = Storage.updateBest({ stage: this.currentStage, kills: this.killCount });
@@ -859,48 +659,41 @@ export class GameScene extends Phaser.Scene {
     choices.forEach((upgrade, idx) => {
       const cy = startY + idx * (cardH + gap);
       const card = this.add
-        .rectangle(width / 2, cy, cardW, cardH, upgrade.color, 0.95)
+        .rectangle(width / 2, cy, cardW, cardH, upgrade.color, 0.92)
         .setStrokeStyle(3, 0xffffff)
         .setDepth(200)
         .setInteractive({ useHandCursor: true });
 
-      const iconBg = this.add
-        .circle(width / 2 - cardW / 2 + 56, cy, 38, 0xffffff, 0.9)
-        .setStrokeStyle(2, 0x1a1a2e, 0.6)
+      const iconText = this.add
+        .text(width / 2 - cardW / 2 + 50, cy, upgrade.icon, {
+          fontFamily: 'sans-serif',
+          fontSize: '44px',
+          color: '#1a1a2e',
+        })
+        .setOrigin(0.5)
         .setDepth(201);
 
-      const iconText = this.add
-        .text(width / 2 - cardW / 2 + 56, cy, upgrade.icon, {
-          fontFamily: 'sans-serif',
-          fontSize: '40px',
-          color: '#1a1a2e',
-        })
-        .setOrigin(0.5)
-        .setDepth(202);
-
       const labelText = this.add
-        .text(width / 2 + 20, cy - 22, upgrade.label, {
+        .text(width / 2 + 10, cy - 22, upgrade.label, {
           fontFamily: 'sans-serif',
-          fontSize: '26px',
+          fontSize: '22px',
           color: '#1a1a2e',
-          stroke: '#ffffff',
-          strokeThickness: 3,
         })
         .setOrigin(0.5)
-        .setDepth(202);
+        .setDepth(201);
 
       const descText = this.add
-        .text(width / 2 + 20, cy + 18, upgrade.description, {
+        .text(width / 2 + 10, cy + 18, upgrade.description, {
           fontFamily: 'sans-serif',
-          fontSize: '16px',
+          fontSize: '14px',
           color: '#1a1a2e',
         })
         .setOrigin(0.5)
-        .setDepth(202);
+        .setDepth(201);
 
       card.on('pointerdown', () => this.selectUpgrade(upgrade));
 
-      this.upgradeUI.push(card, iconBg, iconText, labelText, descText);
+      this.upgradeUI.push(card, iconText, labelText, descText);
     });
   }
 
@@ -922,17 +715,6 @@ export class GameScene extends Phaser.Scene {
     this.orbitArrows = [];
     this.killCount = 0;
     this.player.reset(this.scale.width / 2, this.scale.height * 0.75);
-    this.lastHpDisplayed = -1;
-    this.lastMaxHpDrawn = -1;
-    this.lastHudCache.hpRatio = -1;
-    this.lastHudCache.stage = '';
-    this.lastHudCache.kill = '';
-    this.lastHudCache.atk = '';
-    this.lastHudCache.spd = '';
-    this.lastHudCache.mov = '';
-    this.lastHudCache.multi = '';
-    this.lastHudCache.pierce = '';
-    this.lastHudCache.orbit = '';
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
