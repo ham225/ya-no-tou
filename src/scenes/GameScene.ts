@@ -210,8 +210,7 @@ export class GameScene extends Phaser.Scene {
     this.hpText = this.add
       .text(hpBarX + 3 + HP_BAR_WIDTH / 2, hpRowY, '', {
         fontFamily: 'sans-serif',
-        fontSize: '13px',
-        fontStyle: 'bold',
+        fontSize: '14px',
         color: '#0a0a1f',
       })
       .setOrigin(0.5, 0.5)
@@ -227,9 +226,10 @@ export class GameScene extends Phaser.Scene {
     this.killText = this.add
       .text(width - 28, hpRowY, '', {
         fontFamily: 'sans-serif',
-        fontSize: '14px',
-        fontStyle: 'bold',
+        fontSize: '15px',
         color: '#ffe066',
+        stroke: '#1a1a3a',
+        strokeThickness: 2,
       })
       .setOrigin(1, 0.5)
       .setDepth(101);
@@ -245,10 +245,11 @@ export class GameScene extends Phaser.Scene {
     this.stageText = this.add
       .text(width / 2, stageRowY, '', {
         fontFamily: 'sans-serif',
-        fontSize: '14px',
-        fontStyle: 'bold',
+        fontSize: '15px',
         color: '#e9e9ff',
         align: 'center',
+        stroke: '#1a1a3a',
+        strokeThickness: 2,
       })
       .setOrigin(0.5, 0.5)
       .setDepth(101);
@@ -264,8 +265,7 @@ export class GameScene extends Phaser.Scene {
     this.hudElements.push(statBg);
     const statBaseStyle = {
       fontFamily: 'sans-serif',
-      fontSize: '12px',
-      fontStyle: 'bold',
+      fontSize: '13px',
       color: '#e9e9ff',
     };
     const statOrder: Array<'atk' | 'spd' | 'mov' | 'multi' | 'pierce' | 'orbit'> = [
@@ -318,9 +318,10 @@ export class GameScene extends Phaser.Scene {
     this.bossLabel = this.add
       .text(width / 2, 128, 'BOSS', {
         fontFamily: 'sans-serif',
-        fontSize: '13px',
-        fontStyle: 'bold',
+        fontSize: '14px',
         color: '#ff8aa0',
+        stroke: '#1a1a3a',
+        strokeThickness: 2,
       })
       .setOrigin(0.5)
       .setDepth(100)
@@ -842,9 +843,8 @@ export class GameScene extends Phaser.Scene {
       const iconText = this.add
         .text(width / 2 - cardW / 2 + 56, cy, upgrade.icon, {
           fontFamily: 'sans-serif',
-          fontSize: '36px',
+          fontSize: '40px',
           color: '#1a1a2e',
-          fontStyle: 'bold',
         })
         .setOrigin(0.5)
         .setDepth(202);
@@ -852,9 +852,10 @@ export class GameScene extends Phaser.Scene {
       const labelText = this.add
         .text(width / 2 + 20, cy - 22, upgrade.label, {
           fontFamily: 'sans-serif',
-          fontSize: '24px',
+          fontSize: '26px',
           color: '#1a1a2e',
-          fontStyle: 'bold',
+          stroke: '#ffffff',
+          strokeThickness: 3,
         })
         .setOrigin(0.5)
         .setDepth(202);
@@ -862,9 +863,8 @@ export class GameScene extends Phaser.Scene {
       const descText = this.add
         .text(width / 2 + 20, cy + 18, upgrade.description, {
           fontFamily: 'sans-serif',
-          fontSize: '15px',
+          fontSize: '16px',
           color: '#1a1a2e',
-          fontStyle: 'bold',
         })
         .setOrigin(0.5)
         .setDepth(202);
