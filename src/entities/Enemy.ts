@@ -71,6 +71,7 @@ export class Enemy extends Phaser.GameObjects.Rectangle {
   takeDamage(amount: number): boolean {
     if (!this.isAlive) return false;
     this.hp = Math.max(0, this.hp - amount);
+    this.scene.tweens.killTweensOf(this);
     this.scene.tweens.add({
       targets: this,
       alpha: { from: 0.4, to: 1 },

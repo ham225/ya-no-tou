@@ -4,6 +4,7 @@ class SoundFxImpl {
   private ctx: AudioContext | null = null;
   private muted: boolean;
   private lastShootAt = 0;
+  private lastEnemyHitAt = 0;
 
   constructor() {
     this.muted = Storage.getMuted();
@@ -70,6 +71,9 @@ class SoundFxImpl {
   }
 
   enemyHit(): void {
+    const now = performance.now();
+    if (now - this.lastEnemyHitAt < 50) return;
+    this.lastEnemyHitAt = now;
     this.tone({ freqStart: 520, freqEnd: 380, durMs: 60, type: 'square', volume: 0.06 });
   }
 
